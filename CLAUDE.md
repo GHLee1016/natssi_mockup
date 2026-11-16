@@ -6,7 +6,7 @@
 - Python 3.11+ 에서 `pip install bpy` (Blender 5.3 모듈). Blender 앱이 있으면 `blender -b -P natssi_mockup.py`도 된다.
 - 전부 렌더: `python3 natssi_mockup.py` → `renders/natssi_<컷>.png`
 - 일부만 / 빠르게: `NATSSI_SHOTS=dock,device NATSSI_SAMPLES=48 NATSSI_SCALE=60 python3 natssi_mockup.py`
-- 컷 이름: hero(전체), phone, web, device, dock(거치대 클로즈업), dock_empty(디바이스를 숨긴 빈 거치대)
+- 컷 이름: hero(전체), phone, web, device, dock(거치대 클로즈업), dock_empty(디바이스를 숨긴 빈 거치대), ecosystem(노트북+스캔 폰+스캐너 풀 샷)
 - CPU 렌더라 풀 해상도 컷 하나에 2~5분. 모양 잡을 때는 SCALE=60, SAMPLES=48로 돌리고 마지막에만 풀 해상도.
 - 폰/웹 화면 이미지는 `src/*.html`을 `python3 src/shot.py`로 다시 캡처해서 `screens/`에 만든다(Pretendard 폰트 필요).
 
@@ -27,6 +27,10 @@
 - 거치대: 221×104×12mm, 윗면 2mm 곡면 안착 홈(머리+손잡이 모양, 0.6mm 여유, 가장자리 0.8mm 라운딩), 앞쪽 측면 8×1mm 흰색 LED 바(홈 안쪽에 매립). 웜그레이 재질(흰 디바이스와 대비).
 - 디바이스를 홈에 맞게 재배치: 머리·손잡이 바닥을 같은 면(홈 바닥 위 0.4mm)에 맞춤.
 - 렌더 `dock`, `dock_empty`, `device`, `hero` 갱신.
+- **A 완료(스캐너 렌즈 구조)**: `Device_lens` → `Device_sensor_base`(r=28mm 어두운 받침, 윗면 top+0.4mm)로 바꾸고 그 위에 `Device_LED`(링 굵기 2mm로 줄임)·`Device_LEDdot*`(라운딩)·`Device_scan_lens`(지름 12mm, 높이 1.6mm, 라운딩, 청흑 코팅 재질 `scan_lens_mat`)를 얹음. 그 위를 `Device_cover_glass`(r=29mm, 두께 1.2mm, Glass BSDF IOR 1.5/Rough 0.01, 밑면 top+3.0mm)가 덮고, 세라믹 칼라 `Device_sensor_collar`가 커버를 받침. 치수 상수 `SENSOR_*`, `SCAN_LENS_*`, `COVER_*`. LED 발광 6/8 → 2.2/2.8(커버 아래 클로즈업에서 하얗게 날아가서). Cycles 바운스 transmission/transparent 16.
+  - 검증: `python3 tools/verify_scanner.py`(렌즈 12.0mm, 커버 1.2mm, 렌즈 윗면은 커버 밑면보다 1.0mm, LED 링은 0.6mm 낮음)
+  - 남은 문제: 지금 조명에서는 앞(-y)쪽 카메라 각도로 보면 커버 유리에 `Rim` 조명과 흰 배경벽이 거울처럼 비쳐 센서가 가려짐 → B(카메라)·D(조명)에서 반사 방향을 피해야 함. `renders/`의 기존 PNG는 아직 옛 렌즈로 렌더된 상태(마무리 단계에서 다시 렌더).
+- **에코시스템 샷 추가**: 컷 `ecosystem`(`Cam_ecosystem`, 44mm, 왼쪽 앞 대각선 위). 컷별 숨김 목록 `HIDE`로 이 컷에서만 `Phone_today`를 숨김. 화면은 이 컷에서만 `SCREEN_SWAP`으로 교체: 노트북 `desktop/04_change.png`, 폰 `mobile/05_capture.png`(`tools/make_eco_screens.py`가 `screens/screen_eco_*.png`로 변환, 폰은 둥근 모서리 알파 입힘). **집 배경**: `make_home()`이 원목 책상(윗면 z=0)·뒷벽(y=0.42)·왼쪽 벽 창·소품(화분, 책, 머그, 액자)을 `Home` 컬렉션에, 햇살(`Home_sun` 3.6, 고도 27°)·창 하늘빛·필을 `HomeLights`에 만든다. `HOME_SHOTS`에 든 컷만 `use_set()`이 집 배경+집 조명으로 바꾸고(월드 0.10), 나머지 컷은 스튜디오 배경+3점 조명 그대로. 사용자가 "너무 밝다"고 해서 밝기를 낮춘 상태이니 다시 올리지 말 것. 로고 `natssi`는 이 각도에서 뒤집혀 보임.
 
 ## 다음 작업 (사용자 요청 원문 요약 — 이 순서로 진행)
 ### A. 스캐너 렌즈 구조 (디바이스 머리 윗면)

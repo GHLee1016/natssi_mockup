@@ -5,7 +5,8 @@
   - 폰 2대: 촬영·품질 검사 화면, 오늘의 판정 화면
   - 노트북 1대: 웹 타임라인 대시보드
   - 홈더마 디바이스 1개: 낯씨 LED 케어 디바이스(가상 제품) + 충전 독
-  - 카메라 5개: hero(전체), phone, web, device, dock(거치대 안착 홈·LED 클로즈업)
+  - 카메라: hero(전체), phone, web, device, dock(거치대 안착 홈·LED 클로즈업), dock_empty,
+    ecosystem(노트북+스캔 폰+스캐너 풀 샷)
 
 실행 방법
   1) 명령줄(전부 렌더):   blender -b -P natssi_mockup.py
@@ -122,6 +123,32 @@ def screen_mat(name, png, strength=1.0):
     return m
 
 
+def scan_lens_mat():
+    """광학 스캔 렌즈: 아주 어두운 청흑색, 선명한 반사, 코팅 반사에 약한 청색 기운."""
+    m = principled("ScanLens", (0.010, 0.016, 0.040), 0.04, 0.0, 1.0)
+    b = m.node_tree.nodes["Principled BSDF"]
+    for key, val in (("IOR", 1.6), ("Coat Roughness", 0.01), ("Coat IOR", 1.6),
+                     ("Coat Tint", (0.70, 0.82, 1.0, 1.0)), ("Specular Tint", (0.75, 0.85, 1.0, 1.0))):
+        if key in b.inputs:
+            b.inputs[key].default_value = val
+    return m
+
+
+def glass_mat(name, ior, rough):
+    """투명 유리(Glass BSDF)."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    g = nt.nodes.new("ShaderNodeBsdfGlass")
+    g.inputs["IOR"].default_value = ior
+    g.inputs["Roughness"].default_value = rough
+    g.inputs["Color"].default_value = (1, 1, 1, 1)
+    o = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(g.outputs[0], o.inputs[0])
+    return m
+
+
 # ───────── 형태 헬퍼 ─────────
 def rounded_box(name, size, bevel, segs=8, mat=None, loc=(0, 0, 0)):
     bpy.ops.mesh.primitive_cube_add(location=loc)
@@ -221,6 +248,12 @@ RECESS = 0.002            # 안착 홈 깊이 2mm
 CLEAR = 0.0006            # 디바이스와 홈 사이 여유 0.6mm
 DOCK_X0, DOCK_X1, DOCK_HALF_W = -0.125, 0.096, 0.052   # 거치대: 길이 221mm × 폭 104mm
 LED_LEN, LED_T = 0.008, 0.001                           # 충전 표시 LED 바: 길이 8mm × 두께 1mm
+# 머리 윗면 스캐너(머리 윗면 top 기준 높이, m)
+SENSOR_R = 0.0280          # 어두운 센서 베이스 반지름 28mm
+SENSOR_BASE_TOP = 0.0004   # 센서 베이스 윗면 = top + 0.4mm
+SCAN_LENS_D, SCAN_LENS_H = 0.012, 0.0016   # 스캔 렌즈 지름 12mm, 높이 1.6mm
+COVER_R, COVER_T = 0.0290, 0.0012          # 강화유리 커버 반지름 29mm, 두께 1.2mm
+COVER_Z0 = 0.0030          # 커버 밑면 = top + 3.0mm (LED 링 윗면 top+2.4mm, 렌즈 윗면 top+2.0mm 보다 위)
 
 
 def _smooth(deg=35):
@@ -307,21 +340,49 @@ def make_device(loc, rot_z_deg=0):
     hd = _head("Device_head", HEAD_R, HEAD_T, (HEAD_X, 0, hz))
     hd.data.materials.append(MAT["ceramic"]); parts.append(hd)
     top = zb + HEAD_T
-    # 윗면 유리 + LED 링
-    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=0.028, depth=0.002, location=(HEAD_X, 0, top + 0.0002))
-    gl = bpy.context.active_object; gl.name = "Device_lens"
-    bpy.ops.object.shade_smooth(); gl.data.materials.append(MAT["lens"]); parts.append(gl)
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.0215, minor_radius=0.0016, major_segments=96,
-                                     minor_segments=12, location=(HEAD_X, 0, top + 0.0015))
+    # 윗면 스캐너: 어두운 센서 베이스 → (LED 링·도트·스캔 렌즈) → 1.2mm 강화유리 커버.
+    # LED와 렌즈는 커버 밑면보다 낮게 두어 유리 아래에 매립된 깊이감을 낸다.
+    zs = top + SENSOR_BASE_TOP                                 # 센서 베이스 윗면
+    zc = top + COVER_Z0                                        # 커버 밑면
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SENSOR_R, depth=SENSOR_BASE_TOP + 0.0008,
+                                        location=(HEAD_X, 0, top + (SENSOR_BASE_TOP - 0.0008) / 2))
+    sb = bpy.context.active_object; sb.name = "Device_sensor_base"
+    bpy.ops.object.shade_smooth(); sb.data.materials.append(MAT["sensor_base"]); parts.append(sb)
+    # 커버를 받치는 세라믹 칼라(링): 안쪽 반지름 = 센서 베이스, 바깥 = 커버
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=COVER_R, depth=COVER_Z0 + 0.0008,
+                                        location=(HEAD_X, 0, top + (COVER_Z0 - 0.0008) / 2))
+    col = bpy.context.active_object; col.name = "Device_sensor_collar"
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SENSOR_R, depth=COVER_Z0 + 0.004,
+                                        location=(HEAD_X, 0, top + COVER_Z0 / 2))
+    _cut(col, [bpy.context.active_object], "Bore")
+    bv = col.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0003; bv.segments = 3
+    _smooth(); col.data.materials.append(MAT["ceramic"]); parts.append(col)
+    # 주황 LED 링(유지, 굵기만 커버 아래에 들어가게 줄임)
+    ring_r = 0.0010
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.0215, minor_radius=ring_r, major_segments=96,
+                                     minor_segments=12, location=(HEAD_X, 0, zs + ring_r))
     ring = bpy.context.active_object; ring.name = "Device_LED"
     bpy.ops.object.shade_smooth(); ring.data.materials.append(MAT["led"]); parts.append(ring)
-    # LED 점 12개
+    # LED 점 12개(유지, 가장자리 라운딩)
     for i in range(12):
         ang = 2 * math.pi * i / 12
-        bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.0014, depth=0.0006,
-                                            location=(HEAD_X + 0.013 * math.cos(ang), 0.013 * math.sin(ang), top + 0.0017))
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.0014, depth=0.0006,
+                                            location=(HEAD_X + 0.013 * math.cos(ang), 0.013 * math.sin(ang), zs + 0.0003))
         d = bpy.context.active_object; d.name = f"Device_LEDdot{i}"
-        d.data.materials.append(MAT["led_soft"]); parts.append(d)
+        bv = d.modifiers.new("Bevel", "BEVEL"); bv.width = 0.00025; bv.segments = 3
+        bpy.ops.object.shade_smooth(); d.data.materials.append(MAT["led_soft"]); parts.append(d)
+    # 정중앙 광학 스캔 렌즈: 지름 12mm, 다크 블루-블랙 코팅 유리(살짝 볼록, 가장자리 라운딩)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SCAN_LENS_D / 2, depth=SCAN_LENS_H,
+                                        location=(HEAD_X, 0, zs + SCAN_LENS_H / 2))
+    sl = bpy.context.active_object; sl.name = "Device_scan_lens"
+    bv = sl.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0006; bv.segments = 8; bv.limit_method = "ANGLE"
+    _smooth(60); sl.data.materials.append(MAT["scan_lens"]); parts.append(sl)
+    # 투명 강화유리 커버: 두께 1.2mm, 센서부 전체를 덮음, 가장자리 라운딩
+    bpy.ops.mesh.primitive_cylinder_add(vertices=128, radius=COVER_R, depth=COVER_T,
+                                        location=(HEAD_X, 0, zc + COVER_T / 2))
+    cv = bpy.context.active_object; cv.name = "Device_cover_glass"
+    bv = cv.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0004; bv.segments = 5; bv.limit_method = "ANGLE"
+    _smooth(60); cv.data.materials.append(MAT["cover_glass"]); parts.append(cv)
     # 주황 포인트 띠
     bpy.ops.mesh.primitive_torus_add(major_radius=HEAD_R + 0.0002, minor_radius=0.0012, major_segments=96,
                                      minor_segments=8, location=(HEAD_X, 0, hz))
@@ -415,12 +476,166 @@ def world_and_floor():
     link(f, "Set")
 
 
+# ───────── 집 배경(에코시스템 샷용): 창가 원목 책상 ─────────
+DESK_Z = -0.72            # 방바닥 높이(책상 윗면 z=0 기준)
+
+
+def wood_mat(name, c1, c2, rough=0.45):
+    """나뭇결(절차적): 한 방향으로 늘인 노이즈 → 두 갈색 사이 보간."""
+    m = principled(name, c1, rough, 0.0, 0.15)
+    nt = m.node_tree
+    b = nt.nodes["Principled BSDF"]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    mp = nt.nodes.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = (1.2, 22.0, 22.0)
+    nz = nt.nodes.new("ShaderNodeTexNoise")
+    nz.inputs["Scale"].default_value = 2.2
+    nz.inputs["Detail"].default_value = 7.0
+    nz.inputs["Distortion"].default_value = 1.2
+    cr = nt.nodes.new("ShaderNodeValToRGB")
+    cr.color_ramp.elements[0].position = 0.32
+    cr.color_ramp.elements[0].color = (*srgb(c2), 1)
+    cr.color_ramp.elements[1].position = 0.70
+    cr.color_ramp.elements[1].color = (*srgb(c1), 1)
+    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], nz.inputs["Vector"])
+    nt.links.new(nz.outputs["Fac"], cr.inputs["Fac"])
+    nt.links.new(cr.outputs["Color"], b.inputs["Base Color"])
+    return m
+
+
+def make_home():
+    """일반적인 집 방 한쪽: 벽에 붙인 원목 책상, 왼쪽 벽의 창, 책상 위 소품(화분·책·머그·액자)."""
+    M = {
+        "desk": wood_mat("HomeDesk", (0.66, 0.50, 0.34), (0.50, 0.35, 0.22)),
+        "wall": principled("HomeWall", (0.86, 0.83, 0.78), 0.9),
+        "floor": wood_mat("HomeFloor", (0.52, 0.38, 0.26), (0.38, 0.26, 0.17), 0.5),
+        "trim": principled("HomeTrim", (0.93, 0.92, 0.89), 0.5),
+        "pot": principled("HomePot", (0.80, 0.52, 0.38), 0.7),
+        "soil": principled("HomeSoil", (0.16, 0.12, 0.09), 0.95),
+        "leaf": principled("HomeLeaf", (0.20, 0.38, 0.20), 0.5),
+        "mug": principled("HomeMug", (0.93, 0.91, 0.87), 0.25, 0.0, 0.4),
+        "coffee": principled("HomeCoffee", (0.16, 0.09, 0.05), 0.2),
+        "book1": principled("HomeBook1", (0.30, 0.40, 0.46), 0.7),
+        "book2": principled("HomeBook2", (0.80, 0.62, 0.48), 0.7),
+        "book3": principled("HomeBook3", (0.88, 0.85, 0.78), 0.7),
+        "paper": principled("HomePaper", (0.95, 0.93, 0.88), 0.8),
+        "frame": wood_mat("HomeFrame", (0.42, 0.29, 0.18), (0.30, 0.20, 0.12)),
+        "art": principled("HomeArt", (0.90, 0.60, 0.44), 0.8),
+    }
+    objs = []
+
+    def box(name, size, loc, mat, bevel=0.002, rot_z=0.0):
+        o = rounded_box(name, size, bevel, 3, mat, loc=loc)
+        o.rotation_euler[2] = math.radians(rot_z)
+        objs.append(o)
+        return o
+
+    def cyl(name, r, depth, loc, mat, r2=None, verts=48):
+        if r2 is None:
+            bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=r, depth=depth, location=loc)
+        else:
+            bpy.ops.mesh.primitive_cone_add(vertices=verts, radius1=r, radius2=r2, depth=depth, location=loc)
+        o = bpy.context.active_object
+        o.name = name
+        _smooth(40)
+        o.data.materials.append(mat)
+        objs.append(o)
+        return o
+
+    wall_y, wall_x = 0.42, -0.95
+    # 책상: 상판(윗면 z=0) + 다리
+    box("Home_desk_top", (1.90, 1.05, 0.03), (0.0, wall_y - 0.525, -0.015), M["desk"], 0.004)
+    for i, (x, y) in enumerate(((-0.88, -0.56), (0.88, -0.56), (-0.88, 0.36), (0.88, 0.36))):
+        box(f"Home_desk_leg{i}", (0.05, 0.05, -DESK_Z - 0.03), (x, y, (DESK_Z - 0.03) / 2), M["desk"])
+    # 방바닥, 뒷벽, 걸레받이
+    box("Home_floor", (5.0, 5.0, 0.02), (0.6, -1.0, DESK_Z - 0.01), M["floor"])
+    box("Home_wall_back", (5.0, 0.06, 2.6), (0.6, wall_y + 0.03, DESK_Z + 1.3), M["wall"])
+    box("Home_baseboard", (5.0, 0.012, 0.08), (0.6, wall_y - 0.006, DESK_Z + 0.04), M["trim"])
+    # 왼쪽 벽 + 창(가로 1.0m × 세로 1.1m, 십자 창살). 창 밖에서 아침 햇살이 들어온다.
+    y0, y1, z0, z1 = -0.70, 0.30, 0.15, 1.25
+    wx = wall_x - 0.03
+    box("Home_wall_left_low", (0.06, 5.0, z0 - DESK_Z), (wx, -1.0, (z0 + DESK_Z) / 2), M["wall"])
+    box("Home_wall_left_top", (0.06, 5.0, DESK_Z + 2.6 - z1), (wx, -1.0, (z1 + DESK_Z + 2.6) / 2), M["wall"])
+    box("Home_wall_left_front", (0.06, 3.5 + y0, z1 - z0), (wx, (y0 - 3.5) / 2, (z0 + z1) / 2), M["wall"])
+    box("Home_wall_left_back", (0.06, wall_y + 0.06 - y1, z1 - z0), (wx, (y1 + wall_y + 0.06) / 2, (z0 + z1) / 2), M["wall"])
+    box("Home_window_bar_v", (0.04, 0.04, z1 - z0), (wx, 0.05, (z0 + z1) / 2), M["trim"])
+    box("Home_window_bar_h", (0.04, y1 - y0, 0.04), (wx, (y0 + y1) / 2, 0.88), M["trim"])
+    box("Home_window_sill", (0.14, y1 - y0 + 0.08, 0.025), (wall_x + 0.03, (y0 + y1) / 2, z0 - 0.0125), M["trim"])
+    # 화분(뒤 오른쪽)
+    px, py = 0.34, 0.30
+    cyl("Home_pot", 0.038, 0.085, (px, py, 0.0425), M["pot"], r2=0.050)
+    cyl("Home_pot_soil", 0.047, 0.004, (px, py, 0.080), M["soil"])
+    import random
+    rnd = random.Random(7)
+    for i in range(13):
+        ang = 2 * math.pi * i / 13 + rnd.uniform(-0.2, 0.2)
+        tilt = rnd.uniform(0.15, 0.55)
+        ln = rnd.uniform(0.10, 0.17)
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1, location=(0, 0, 0))
+        lf = bpy.context.active_object
+        lf.name = f"Home_leaf{i}"
+        lf.scale = (0.019, 0.0035, ln / 2)
+        bpy.ops.object.transform_apply(scale=True)
+        bpy.ops.object.shade_smooth()
+        lf.rotation_euler = (0, tilt, ang)
+        r0 = 0.012
+        lf.location = (px + math.cos(ang) * (r0 + math.sin(tilt) * ln / 2),
+                       py + math.sin(ang) * (r0 + math.sin(tilt) * ln / 2), 0.082 + math.cos(tilt) * ln / 2)
+        lf.data.materials.append(M["leaf"])
+        objs.append(lf)
+    # 책 더미(뒤 왼쪽)
+    bx, by = -0.36, 0.29
+    box("Home_book1", (0.21, 0.15, 0.028), (bx, by, 0.014), M["book1"], 0.003, 6)
+    box("Home_book1_pages", (0.202, 0.142, 0.020), (bx + 0.004, by - 0.004, 0.014), M["paper"], 0.001, 6)
+    box("Home_book2", (0.19, 0.135, 0.022), (bx + 0.005, by + 0.003, 0.039), M["book2"], 0.003, -5)
+    box("Home_book3", (0.17, 0.12, 0.018), (bx - 0.004, by, 0.059), M["book3"], 0.003, 11)
+    # 머그(책 더미와 노트북 사이)
+    mx, my = -0.185, 0.26
+    cyl("Home_mug", 0.040, 0.092, (mx, my, 0.046), M["mug"])
+    cyl("Home_mug_coffee", 0.035, 0.002, (mx, my, 0.0925), M["coffee"])
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.026, minor_radius=0.006, major_segments=48, minor_segments=12,
+                                     location=(mx + 0.012, my - 0.043, 0.048), rotation=(math.radians(90), 0, math.radians(105)))
+    hd = bpy.context.active_object
+    hd.name = "Home_mug_handle"
+    bpy.ops.object.shade_smooth()
+    hd.data.materials.append(M["mug"])
+    objs.append(hd)
+    # 벽에 건 액자(왼쪽 위)
+    fx, fz = -0.19, 0.38
+    box("Home_frame", (0.21, 0.02, 0.27), (fx, wall_y - 0.01, fz), M["frame"], 0.003)
+    box("Home_frame_mat", (0.18, 0.004, 0.24), (fx, wall_y - 0.021, fz), M["paper"], 0.001)
+    box("Home_frame_art", (0.09, 0.004, 0.13), (fx, wall_y - 0.023, fz - 0.01), M["art"], 0.001)
+    for o in objs:
+        link(o, "Home")
+    # 조명: 낮은 각도의 따뜻한 아침 햇살(창으로) + 창 쪽 부드러운 하늘빛 + 방 안쪽 은은한 필
+    sd = bpy.data.lights.new("Home_sun", "SUN")
+    sd.energy = 3.6
+    sd.color = (1.0, 0.84, 0.66)
+    sd.angle = math.radians(5)
+    so = bpy.data.objects.new("Home_sun", sd)
+    bpy.context.scene.collection.objects.link(so)
+    el, az = math.radians(27), math.radians(14)
+    d = Vector((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), -math.sin(el)))
+    so.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    link(so, "HomeLights")
+    sky = area("Home_window_sky", (wall_x - 0.25, (y0 + y1) / 2, (z0 + z1) / 2), (0.2, -0.1, 0.0), 1.0, 10, (0.86, 0.92, 1.0))
+    fill = area("Home_room_fill", (0.9, -1.0, 0.9), (0.0, -0.05, 0.05), 1.6, 5, (1.0, 0.90, 0.80))
+    for o in (sky, fill):
+        link(o, "HomeLights")
+
+
 # ───────── 렌더 설정 ─────────
 def render_setup():
     s = bpy.context.scene
     s.render.engine = "CYCLES"
     s.cycles.samples = SAMPLES
     s.cycles.use_denoising = True
+    # 커버 유리 투과 때문에 바운스를 넉넉히
+    s.cycles.max_bounces = 16
+    s.cycles.transmission_bounces = 16
+    s.cycles.transparent_max_bounces = 16
+    s.cycles.glossy_bounces = 8
     try:
         s.cycles.device = "GPU"
         prefs = bpy.context.preferences.addons["cycles"].preferences
@@ -447,9 +662,11 @@ MAT = {
     "key": principled("Keys", (0.12, 0.12, 0.13), 0.6),
     "bezel": principled("Bezel", (0.01, 0.01, 0.012), 0.2),
     "ceramic": principled("Ceramic", (0.90, 0.89, 0.87), 0.3, 0.0, 0.5),
-    "lens": principled("Lens", (0.10, 0.09, 0.09), 0.22, 0.0, 0.6),
-    "led": emissive("LED", ORANGE, 6),
-    "led_soft": emissive("LEDdot", (1.0, 0.35, 0.28), 8),
+    "sensor_base": principled("SensorBase", (0.035, 0.035, 0.04), 0.45, 0.0, 0.3),
+    "scan_lens": scan_lens_mat(),
+    "cover_glass": glass_mat("CoverGlass", 1.5, 0.01),
+    "led": emissive("LED", ORANGE, 2.2),            # 커버 유리 아래에서 오렌지가 하얗게 날지 않게
+    "led_soft": emissive("LEDdot", (1.0, 0.35, 0.28), 2.8),
     "accent": principled("Accent", ORANGE, 0.35),
     "logo": principled("Logo", INK, 0.5),
     "dock": principled("Dock", (0.62, 0.59, 0.56), 0.5, 0.0, 0.2),
@@ -464,6 +681,8 @@ make_phone("Phone_check", "screen_phone1.png", (-0.235, 0.0, 0), rot_z_deg=14)
 make_phone("Phone_today", "screen_phone2.png", (-0.15, -0.09, 0), rot_z_deg=8)
 DEV = make_device((0.23, -0.13, 0), rot_z_deg=-24)
 bpy.context.view_layer.update()
+
+make_home()
 
 area("Key", (-0.6, -0.7, 0.9), (0, 0, 0.05), 0.9, 24)
 area("Fill", (0.8, -0.5, 0.5), (0, 0, 0.05), 1.2, 8, (1, 0.95, 0.9))
@@ -482,7 +701,43 @@ cams["dock"] = camera("Cam_dock", _dw((0.020, -0.255, 0.105)), _dw((0.005, -0.02
 cams["dock"].data.dof.aperture_fstop = 22
 cams["dock_empty"] = camera("Cam_dock_empty", _dw((-0.005, -0.150, 0.215)), _dw((-0.015, 0.000, 0.010)), 42)
 cams["dock_empty"].data.dof.aperture_fstop = 22
+# 에코시스템 샷: 노트북(웹) + 폰(스캔 앱 화면) + 데스크 스캐너가 한 책상 위에 모인 풀 샷.
+# 왼쪽 앞 대각선 위에서 내려다봄. 폰은 스캔 화면(Phone_check) 한 대만 보이게 Phone_today를 숨긴다.
+cams["ecosystem"] = camera("Cam_ecosystem", (-0.26, -0.90, 0.40), (0.03, 0.0, 0.115), 44)
+# 컷별 배경 세트: "home" = 집 책상(Home·HomeLights 컬렉션), 그 밖은 스튜디오(Set·Lights 컬렉션)
+HOME_SHOTS = ("ecosystem",)
+WORLD_HOME = ((1.0, 0.93, 0.85), 0.10)                # 집 배경일 때 월드 색·세기(따뜻하고 어둡게)
+
+
+def use_set(key):
+    home = key in HOME_SHOTS
+    for cname, on in (("Home", home), ("HomeLights", home), ("Set", not home), ("Lights", not home)):
+        for o in bpy.data.collections[cname].objects:
+            o.hide_render = not on
+            o.hide_viewport = not on
+    bg = bpy.context.scene.world.node_tree.nodes["Background"]
+    col, st = WORLD_HOME if home else ((0.97, 0.955, 0.94), 0.14)
+    bg.inputs[0].default_value = (*srgb(col), 1)
+    bg.inputs[1].default_value = st
+HIDE = {"ecosystem": ("Phone_today",)}                # 컷별로 숨길 오브젝트 이름 접두어
+# 컷별 화면 이미지 교체(재질 이름 → screens/ 안의 파일). desktop/·mobile/ 캡처에서 tools/make_eco_screens.py로 만든다.
+SCREEN_SWAP = {"ecosystem": {"web_scr": "screen_eco_web.png", "Phone_check_scr": "screen_eco_phone.png"}}
+_SCREEN_DEFAULT = {}
+
+
+def swap_screens(key):
+    """key 컷에 맞는 화면 이미지로 바꾸고, 다른 컷에서는 원래 이미지로 되돌린다."""
+    swaps = SCREEN_SWAP.get(key, {})
+    for mats in SCREEN_SWAP.values():
+        for mname in mats:
+            tex = next(n for n in bpy.data.materials[mname].node_tree.nodes if n.type == "TEX_IMAGE")
+            _SCREEN_DEFAULT.setdefault(mname, tex.image)
+            if mname in swaps:
+                tex.image = bpy.data.images.load(os.path.join(SCREENS, swaps[mname]), check_existing=True)
+            else:
+                tex.image = _SCREEN_DEFAULT[mname]
 bpy.context.scene.camera = cams["hero"]
+use_set("hero")
 
 if RENDER:
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -491,10 +746,14 @@ if RENDER:
         if only and key not in only.split(","):
             continue
         bpy.context.scene.camera = cam
+        swap_screens(key)
+        use_set(key)
         keep = ("Device_dock", "Device_dock_LED", "Dock_LED_glow")
         for o in bpy.data.objects:                       # dock_empty: 디바이스를 숨기고 거치대 홈만 보여줌
             if o.name.startswith("Device_") or o.name == "Device":
                 o.hide_render = (key == "dock_empty") and o.name not in keep and o.name != "Device"
+            elif o.name.startswith("Phone_"):
+                o.hide_render = o.name.startswith(HIDE.get(key, ("\0",)))
         bpy.context.scene.render.filepath = os.path.join(OUT_DIR, f"natssi_{key}.png")
         bpy.ops.render.render(write_still=True)
         print("[natssi] 렌더 완료:", bpy.context.scene.render.filepath)
