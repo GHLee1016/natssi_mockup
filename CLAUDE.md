@@ -27,6 +27,9 @@
 - 거치대: 221×104×12mm, 윗면 2mm 곡면 안착 홈(머리+손잡이 모양, 0.6mm 여유, 가장자리 0.8mm 라운딩), 앞쪽 측면 8×1mm 흰색 LED 바(홈 안쪽에 매립). 웜그레이 재질(흰 디바이스와 대비).
 - 디바이스를 홈에 맞게 재배치: 머리·손잡이 바닥을 같은 면(홈 바닥 위 0.4mm)에 맞춤.
 - 렌더 `dock`, `dock_empty`, `device`, `hero` 갱신.
+- **A 완료(스캐너 렌즈 구조)**: `Device_lens` → `Device_sensor_base`(r=28mm 어두운 받침, 윗면 top+0.4mm)로 바꾸고 그 위에 `Device_LED`(링 굵기 2mm로 줄임)·`Device_LEDdot*`(라운딩)·`Device_scan_lens`(지름 12mm, 높이 1.6mm, 라운딩, 청흑 코팅 재질 `scan_lens_mat`)를 얹음. 그 위를 `Device_cover_glass`(r=29mm, 두께 1.2mm, Glass BSDF IOR 1.5/Rough 0.01, 밑면 top+3.0mm)가 덮고, 세라믹 칼라 `Device_sensor_collar`가 커버를 받침. 치수 상수 `SENSOR_*`, `SCAN_LENS_*`, `COVER_*`. LED 발광 6/8 → 2.2/2.8(커버 아래 클로즈업에서 하얗게 날아가서). Cycles 바운스 transmission/transparent 16.
+  - 검증: `python3 tools/verify_scanner.py`(렌즈 12.0mm, 커버 1.2mm, 렌즈 윗면은 커버 밑면보다 1.0mm, LED 링은 0.6mm 낮음)
+  - 남은 문제: 지금 조명에서는 앞(-y)쪽 카메라 각도로 보면 커버 유리에 `Rim` 조명과 흰 배경벽이 거울처럼 비쳐 센서가 가려짐 → B(카메라)·D(조명)에서 반사 방향을 피해야 함. `renders/`의 기존 PNG는 아직 옛 렌즈로 렌더된 상태(마무리 단계에서 다시 렌더).
 
 ## 다음 작업 (사용자 요청 원문 요약 — 이 순서로 진행)
 ### A. 스캐너 렌즈 구조 (디바이스 머리 윗면)

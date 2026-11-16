@@ -122,6 +122,32 @@ def screen_mat(name, png, strength=1.0):
     return m
 
 
+def scan_lens_mat():
+    """광학 스캔 렌즈: 아주 어두운 청흑색, 선명한 반사, 코팅 반사에 약한 청색 기운."""
+    m = principled("ScanLens", (0.010, 0.016, 0.040), 0.04, 0.0, 1.0)
+    b = m.node_tree.nodes["Principled BSDF"]
+    for key, val in (("IOR", 1.6), ("Coat Roughness", 0.01), ("Coat IOR", 1.6),
+                     ("Coat Tint", (0.70, 0.82, 1.0, 1.0)), ("Specular Tint", (0.75, 0.85, 1.0, 1.0))):
+        if key in b.inputs:
+            b.inputs[key].default_value = val
+    return m
+
+
+def glass_mat(name, ior, rough):
+    """투명 유리(Glass BSDF)."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    g = nt.nodes.new("ShaderNodeBsdfGlass")
+    g.inputs["IOR"].default_value = ior
+    g.inputs["Roughness"].default_value = rough
+    g.inputs["Color"].default_value = (1, 1, 1, 1)
+    o = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(g.outputs[0], o.inputs[0])
+    return m
+
+
 # ───────── 형태 헬퍼 ─────────
 def rounded_box(name, size, bevel, segs=8, mat=None, loc=(0, 0, 0)):
     bpy.ops.mesh.primitive_cube_add(location=loc)
@@ -221,6 +247,12 @@ RECESS = 0.002            # 안착 홈 깊이 2mm
 CLEAR = 0.0006            # 디바이스와 홈 사이 여유 0.6mm
 DOCK_X0, DOCK_X1, DOCK_HALF_W = -0.125, 0.096, 0.052   # 거치대: 길이 221mm × 폭 104mm
 LED_LEN, LED_T = 0.008, 0.001                           # 충전 표시 LED 바: 길이 8mm × 두께 1mm
+# 머리 윗면 스캐너(머리 윗면 top 기준 높이, m)
+SENSOR_R = 0.0280          # 어두운 센서 베이스 반지름 28mm
+SENSOR_BASE_TOP = 0.0004   # 센서 베이스 윗면 = top + 0.4mm
+SCAN_LENS_D, SCAN_LENS_H = 0.012, 0.0016   # 스캔 렌즈 지름 12mm, 높이 1.6mm
+COVER_R, COVER_T = 0.0290, 0.0012          # 강화유리 커버 반지름 29mm, 두께 1.2mm
+COVER_Z0 = 0.0030          # 커버 밑면 = top + 3.0mm (LED 링 윗면 top+2.4mm, 렌즈 윗면 top+2.0mm 보다 위)
 
 
 def _smooth(deg=35):
@@ -307,21 +339,49 @@ def make_device(loc, rot_z_deg=0):
     hd = _head("Device_head", HEAD_R, HEAD_T, (HEAD_X, 0, hz))
     hd.data.materials.append(MAT["ceramic"]); parts.append(hd)
     top = zb + HEAD_T
-    # 윗면 유리 + LED 링
-    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=0.028, depth=0.002, location=(HEAD_X, 0, top + 0.0002))
-    gl = bpy.context.active_object; gl.name = "Device_lens"
-    bpy.ops.object.shade_smooth(); gl.data.materials.append(MAT["lens"]); parts.append(gl)
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.0215, minor_radius=0.0016, major_segments=96,
-                                     minor_segments=12, location=(HEAD_X, 0, top + 0.0015))
+    # 윗면 스캐너: 어두운 센서 베이스 → (LED 링·도트·스캔 렌즈) → 1.2mm 강화유리 커버.
+    # LED와 렌즈는 커버 밑면보다 낮게 두어 유리 아래에 매립된 깊이감을 낸다.
+    zs = top + SENSOR_BASE_TOP                                 # 센서 베이스 윗면
+    zc = top + COVER_Z0                                        # 커버 밑면
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SENSOR_R, depth=SENSOR_BASE_TOP + 0.0008,
+                                        location=(HEAD_X, 0, top + (SENSOR_BASE_TOP - 0.0008) / 2))
+    sb = bpy.context.active_object; sb.name = "Device_sensor_base"
+    bpy.ops.object.shade_smooth(); sb.data.materials.append(MAT["sensor_base"]); parts.append(sb)
+    # 커버를 받치는 세라믹 칼라(링): 안쪽 반지름 = 센서 베이스, 바깥 = 커버
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=COVER_R, depth=COVER_Z0 + 0.0008,
+                                        location=(HEAD_X, 0, top + (COVER_Z0 - 0.0008) / 2))
+    col = bpy.context.active_object; col.name = "Device_sensor_collar"
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SENSOR_R, depth=COVER_Z0 + 0.004,
+                                        location=(HEAD_X, 0, top + COVER_Z0 / 2))
+    _cut(col, [bpy.context.active_object], "Bore")
+    bv = col.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0003; bv.segments = 3
+    _smooth(); col.data.materials.append(MAT["ceramic"]); parts.append(col)
+    # 주황 LED 링(유지, 굵기만 커버 아래에 들어가게 줄임)
+    ring_r = 0.0010
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.0215, minor_radius=ring_r, major_segments=96,
+                                     minor_segments=12, location=(HEAD_X, 0, zs + ring_r))
     ring = bpy.context.active_object; ring.name = "Device_LED"
     bpy.ops.object.shade_smooth(); ring.data.materials.append(MAT["led"]); parts.append(ring)
-    # LED 점 12개
+    # LED 점 12개(유지, 가장자리 라운딩)
     for i in range(12):
         ang = 2 * math.pi * i / 12
-        bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.0014, depth=0.0006,
-                                            location=(HEAD_X + 0.013 * math.cos(ang), 0.013 * math.sin(ang), top + 0.0017))
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.0014, depth=0.0006,
+                                            location=(HEAD_X + 0.013 * math.cos(ang), 0.013 * math.sin(ang), zs + 0.0003))
         d = bpy.context.active_object; d.name = f"Device_LEDdot{i}"
-        d.data.materials.append(MAT["led_soft"]); parts.append(d)
+        bv = d.modifiers.new("Bevel", "BEVEL"); bv.width = 0.00025; bv.segments = 3
+        bpy.ops.object.shade_smooth(); d.data.materials.append(MAT["led_soft"]); parts.append(d)
+    # 정중앙 광학 스캔 렌즈: 지름 12mm, 다크 블루-블랙 코팅 유리(살짝 볼록, 가장자리 라운딩)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=SCAN_LENS_D / 2, depth=SCAN_LENS_H,
+                                        location=(HEAD_X, 0, zs + SCAN_LENS_H / 2))
+    sl = bpy.context.active_object; sl.name = "Device_scan_lens"
+    bv = sl.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0006; bv.segments = 8; bv.limit_method = "ANGLE"
+    _smooth(60); sl.data.materials.append(MAT["scan_lens"]); parts.append(sl)
+    # 투명 강화유리 커버: 두께 1.2mm, 센서부 전체를 덮음, 가장자리 라운딩
+    bpy.ops.mesh.primitive_cylinder_add(vertices=128, radius=COVER_R, depth=COVER_T,
+                                        location=(HEAD_X, 0, zc + COVER_T / 2))
+    cv = bpy.context.active_object; cv.name = "Device_cover_glass"
+    bv = cv.modifiers.new("Bevel", "BEVEL"); bv.width = 0.0004; bv.segments = 5; bv.limit_method = "ANGLE"
+    _smooth(60); cv.data.materials.append(MAT["cover_glass"]); parts.append(cv)
     # 주황 포인트 띠
     bpy.ops.mesh.primitive_torus_add(major_radius=HEAD_R + 0.0002, minor_radius=0.0012, major_segments=96,
                                      minor_segments=8, location=(HEAD_X, 0, hz))
@@ -421,6 +481,11 @@ def render_setup():
     s.render.engine = "CYCLES"
     s.cycles.samples = SAMPLES
     s.cycles.use_denoising = True
+    # 커버 유리 투과 때문에 바운스를 넉넉히
+    s.cycles.max_bounces = 16
+    s.cycles.transmission_bounces = 16
+    s.cycles.transparent_max_bounces = 16
+    s.cycles.glossy_bounces = 8
     try:
         s.cycles.device = "GPU"
         prefs = bpy.context.preferences.addons["cycles"].preferences
@@ -447,9 +512,11 @@ MAT = {
     "key": principled("Keys", (0.12, 0.12, 0.13), 0.6),
     "bezel": principled("Bezel", (0.01, 0.01, 0.012), 0.2),
     "ceramic": principled("Ceramic", (0.90, 0.89, 0.87), 0.3, 0.0, 0.5),
-    "lens": principled("Lens", (0.10, 0.09, 0.09), 0.22, 0.0, 0.6),
-    "led": emissive("LED", ORANGE, 6),
-    "led_soft": emissive("LEDdot", (1.0, 0.35, 0.28), 8),
+    "sensor_base": principled("SensorBase", (0.035, 0.035, 0.04), 0.45, 0.0, 0.3),
+    "scan_lens": scan_lens_mat(),
+    "cover_glass": glass_mat("CoverGlass", 1.5, 0.01),
+    "led": emissive("LED", ORANGE, 2.2),            # 커버 유리 아래에서 오렌지가 하얗게 날지 않게
+    "led_soft": emissive("LEDdot", (1.0, 0.35, 0.28), 2.8),
     "accent": principled("Accent", ORANGE, 0.35),
     "logo": principled("Logo", INK, 0.5),
     "dock": principled("Dock", (0.62, 0.59, 0.56), 0.5, 0.0, 0.2),
