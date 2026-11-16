@@ -1,0 +1,63 @@
+<html><head><meta charset=utf-8><link rel=stylesheet href=common.css><style>
+body{width:1440px;height:900px;overflow:hidden;display:flex}
+.side{width:230px;background:#fff;border-right:1px solid var(--line);padding:28px 20px}
+.logo{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:700;margin-bottom:34px}
+.logo i{width:34px;height:34px;border-radius:11px;display:block}
+.nav div{padding:11px 14px;border-radius:12px;font-size:15px;color:var(--sub);margin-bottom:4px}
+.nav .on{background:#fff2ea;color:#d9653f;font-weight:700}
+.main{flex:1;padding:28px 34px}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px}
+.hd h1{font-size:28px;font-weight:700}.hd p{font-size:14px;color:var(--sub);margin-top:4px}
+.grid{display:grid;grid-template-columns:2.05fr 1fr;gap:18px;align-items:start}
+.card{padding:22px}
+.card h3{font-size:16px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.card h3 span{font-size:12px;color:var(--sub);font-weight:400}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{padding:16px 18px}.kpi .t{font-size:12.5px;color:var(--sub)}.kpi .v{font-size:24px;font-weight:700;margin-top:6px}.kpi .s{font-size:12px;color:var(--sub);margin-top:2px}
+.rep{font-size:14px;line-height:1.7}.cite{color:#e0704f;font-weight:600}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.row:last-child{border:0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+</style></head><body>
+<div class=side><div class=logo><i style="background:url(../logo/natssi_symbol.svg) center/contain no-repeat;width:44px;height:44px;border-radius:0"></i>낯씨</div>
+<div class=nav><div class=on>타임라인</div><div>오늘 기록</div><div>루틴 관리</div><div>리포트</div><div>검증 지표</div></div>
+<div style="position:absolute;bottom:28px;left:20px;width:190px;font-size:12px;color:var(--sub);line-height:1.6">매일의 얼굴 날씨를 기록하는<br>AI 피부 일지</div></div>
+<div class=main>
+<div class=hd><div><h1>김서연 님의 루틴 타임라인</h1><p>홈더마 사용자 · 기록 28일 · <span class=chip style="background:#eef2f6;color:#6b7280;padding:2px 9px">가상 데이터</span></p></div>
+<div style="display:flex;gap:8px"><span class=chip style="background:#fff;border:1px solid var(--line)">최근 4주</span><span class="chip grad" style="color:#fff">리포트 보기</span></div></div>
+<div class=kpis>
+<div class="card kpi"><div class=t>오늘의 판정</div><div class=v style="color:var(--green)">신호 없음</div><div class=s>버전 3 · 평소 범위 복귀</div></div>
+<div class="card kpi"><div class=t>측정 오차 (MDC95)</div><div class=v>Δa* 1.8</div><div class=s>반복 촬영으로 산출 (예시 값)</div></div>
+<div class="card kpi"><div class=t>촬영 품질 통과</div><div class=v>26 / 28</div><div class=s>조명 다름 2회 보류</div></div>
+<div class="card kpi"><div class=t>환경 (전날·3일 평균)</div><div class=v>평이</div><div class=s>PM2.5 18 · 습도 46%</div></div>
+</div>
+<div class=grid>
+<div class=card><h3>볼 붉은기 변화 (Δa*, 볼 − 이마) <span>초록 띠 = 내 평소 범위</span></h3>
+<svg width="100%" viewBox="0 0 860 478" style="display:block">
+<rect x=40 y="14.5" width=300 height="391.5" fill="#f4f6f8"/><rect x=340 y="14.5" width=260 height="391.5" fill="#fff4ec"/><rect x=600 y="14.5" width=260 height="391.5" fill="#f1f7fb"/>
+<rect x=40 y="232" width=820 height="87" fill="#dcefe5" opacity=".85"/>
+<text x=48 y="43.5" font-size=13 fill="#6b7280">버전 1 · 기존 루틴</text><text x=348 y="43.5" font-size=13 fill="#e0704f" font-weight=600>버전 2 · 레티놀 세럼 추가</text><text x=608 y="43.5" font-size=13 fill="#4a8fb8" font-weight=600>버전 3 · 주 2회로 조정</text>
+<g stroke="#e5e7eb"><line x1=40 y1="406" x2=860 y2="406"/></g>
+<polyline fill=none stroke="#1f2a37" stroke-width=2.5 points="50,275.5 80,263.9 110,284.2 140,269.7 170,278.4 200,261 230,275.5 260,266.8 290,281.3 320,269.7 350,275.5 380,269.7 410,261 440,217.5 470,171.1 500,139.2 530,133.4 560,156.6 590,188.5 620,217.5 650,246.5 680,266.8 710,272.6 740,263.9 770,278.4 800,269.7 830,275.5"/>
+<g fill="#ff8a65"><circle cx=440 cy="217.5" r="6"/><circle cx=470 cy="171.1" r="6"/><circle cx=500 cy="139.2" r="6"/><circle cx=530 cy="133.4" r="6"/><circle cx=560 cy="156.6" r="6"/></g>
+<g font-size=12 fill="#6b7280"><text x=40 y="435">10/18</text><text x=330 y="435">11/01</text><text x=590 y="435">11/08</text><text x=820 y="435">11/14</text></g>
+<g font-size=12><rect x=448 y="89.9" width=130 height="26" rx=13 fill="#ff8a65"/><text x=462 y="108" fill="#fff" font-weight=600>4~7일차 신호 있음</text></g>
+<g font-size=12><rect x=46 y="336.4" width=12 height="12" rx=3 fill="#ffd9c7"/><text x=64 y="347" fill="#6b7280">따가움 체크인</text>
+<rect x=470 y="336.4" width=24 height="14" rx=3 fill="#ffb59a"/><text x=476 y="347" fill="#7a2e17" font-size=10>2점</text><rect x=500 y="336.4" width=24 height="14" rx=3 fill="#ffb59a"/><text x=506 y="347" fill="#7a2e17" font-size=10>2점</text><rect x=530 y="336.4" width=24 height="14" rx=3 fill="#ffd9c7"/><text x=536 y="347" fill="#7a2e17" font-size=10>1점</text></g>
+</svg></div>
+<div style="display:flex;flex-direction:column;gap:18px">
+<div class=card><h3>리포트 <span>근거 기록 인용</span></h3><div class=rep>레티놀 세럼을 추가한 뒤(버전 2) 5~7일째 양 볼 붉은기가 평소 범위를 넘었고, 같은 기간 따가움 2점이 기록됐어요. 같은 날 미세먼지·습도는 평소와 비슷했어요. <span class=cite>[근거: 기록 12~14]</span><br><br>주 2회로 줄인 뒤(버전 3) 붉은기가 평소 범위로 돌아왔어요. <span class=cite>[근거: 기록 18~24]</span></div></div>
+<div class=card><h3>현재 루틴 · 버전 3</h3>
+<div class=row><span><i class=dot style="background:#8ec5e8"></i>약산성 클렌저</span><span style="color:var(--sub)">아침·저녁</span></div>
+<div class=row><span><i class=dot style="background:#ff8a65"></i>레티놀 세럼</span><span style="color:#e0704f;font-weight:600">주 2회 ↓</span></div>
+<div class=row><span><i class=dot style="background:#8ec5e8"></i>세라마이드 크림</span><span style="color:var(--sub)">매일</span></div>
+<div class=row><span><i class=dot style="background:#ffb86b"></i>LED 마스크</span><span style="color:var(--sub)">주 3회 · 10분</span></div>
+</div></div></div>
+<div class=card style="margin-top:18px;padding:18px 22px;display:flex;align-items:center;gap:28px">
+<b style="font-size:15px">검증 지표</b>
+<span style="font-size:14px">반복 촬영 오차 <b>MDC95 Δa* 1.8</b> <span style="color:var(--sub);font-size:12px">(예시)</span></span>
+<span style="font-size:14px">변화 감지율 <b>80% 목표</b></span>
+<span style="font-size:14px">근거 없는 문장 <b>0 / 50</b></span>
+<span style="font-size:14px">OCR 전성분 일치율 <b>확인 중</b></span>
+<span style="margin-left:auto;font-size:12px;color:var(--sub)">판정: 신호 없음 · 관찰 중 · 신호 있음 · 구분 불가</span>
+</div></div></body></html>

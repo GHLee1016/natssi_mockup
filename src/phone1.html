@@ -1,0 +1,37 @@
+<html><head><meta charset=utf-8><link rel=stylesheet href=common.css><style>
+body{width:393px;height:852px;overflow:hidden;background:#11161d;color:#fff}
+.status{height:54px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 8px;font-size:15px;font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:center;padding:10px 20px}
+.top b{font-size:17px}
+.view{position:relative;margin:8px 16px;height:470px;border-radius:28px;overflow:hidden;background:radial-gradient(120% 90% at 50% 35%,#4a5563,#1b222b)}
+.oval{position:absolute;left:50%;top:48%;width:230px;height:300px;transform:translate(-50%,-50%);border-radius:50%;border:3px solid #7fe0a8;box-shadow:0 0 0 2000px rgba(0,0,0,.38)}
+.face{position:absolute;left:50%;top:50%;width:200px;height:270px;transform:translate(-50%,-50%);border-radius:48% 48% 46% 46%;background:radial-gradient(60% 50% at 50% 40%,#f3c9b3,#d9a58c)}
+.reg{position:absolute;border:2px dashed rgba(255,255,255,.9);border-radius:40%;z-index:2}.cheek{position:absolute;width:46px;height:30px;border-radius:50%;border:2px dashed rgba(255,255,255,.85);top:150px}
+.forehead{position:absolute;left:62px;top:48px;width:76px;height:34px;border-radius:40%;border:2px dashed rgba(255,255,255,.85)}
+.lbl{position:absolute;font-size:10px;font-weight:600;background:rgba(0,0,0,.45);padding:2px 6px;border-radius:6px}
+.hint{position:absolute;left:0;right:0;bottom:18px;text-align:center;font-size:14px;font-weight:600}
+.checks{margin:14px 16px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ck{background:#1c242e;border-radius:16px;padding:12px 10px}
+.ck .t{font-size:12px;color:#9aa4b2}.ck .v{margin-top:4px;font-size:15px;font-weight:700;color:#7fe0a8}
+.shot{display:flex;align-items:center;justify-content:space-between;margin:22px 40px 0}
+.btn{width:76px;height:76px;border-radius:50%;border:4px solid #fff;display:flex;align-items:center;justify-content:center}
+.btn i{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ffb86b,#ff8a65)}
+.side{font-size:12px;color:#9aa4b2;text-align:center;width:70px}
+</style></head><body>
+<div class=status><span>9:41</span><span>●●● ▮</span></div>
+<div class=top><span style="font-size:22px">‹</span><b>오늘의 얼굴 날씨 찍기</b><span class=chip style="background:#1f2a37;color:#ffb86b">D+6</span></div>
+<div class=view>
+ <img src="../faces/seoyeon_A.jpg" style="position:absolute;width:500px;left:-68px;top:-73px">
+<div class=reg style="left:142px;top:117px;width:76px;height:34px"></div><div class=reg style="left:95px;top:240px;width:46px;height:32px;border-radius:50%"></div><div class=reg style="left:216px;top:240px;width:46px;height:32px;border-radius:50%"></div>
+<div class=oval></div>
+ <span class=lbl style="left:160px;top:96px;z-index:3">이마</span>
+ <span class=lbl style="left:52px;top:248px;z-index:3">왼볼</span><span class=lbl style="right:44px;top:248px;z-index:3">오른볼</span><span class=lbl style="left:12px;top:12px;z-index:3">AI로 생성된 이미지</span>
+ <div class=hint>좋아요, 그대로 멈춰 주세요</div>
+</div>
+<div class=checks>
+ <div class=ck><div class=t>고개 각도</div><div class=v>정면 ✓</div></div>
+ <div class=ck><div class=t>조명</div><div class=v>평소와 같음 ✓</div></div>
+ <div class=ck><div class=t>표정</div><div class=v>무표정 ✓</div></div>
+</div>
+<div class=shot><div class=side>지난 기록<br>12장</div><div class=btn><i></i></div><div class=side>증상<br>체크인</div></div>
+</body></html>
