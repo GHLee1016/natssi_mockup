@@ -5,7 +5,7 @@
 - `natssi_mockup.py` — 씬 생성 스크립트 (Blender 4.2 이상, 5.x에서 테스트)
 - `screens/` — 폰·웹에 들어가는 화면 이미지 3장 (김서연 가상 데이터)
 - `src/` — 화면 원본 HTML (문구를 바꾸려면 여기서 고친 뒤 `python3 shot.py`로 다시 캡처)
-- `renders/` — 미리 렌더한 결과 (hero, phone, web, device, dock, dock_empty)
+- `renders/` — 미리 렌더한 결과 (hero, phone, web, device, dock, dock_empty, ecosystem)
 
 ## 실행
 
@@ -32,3 +32,9 @@ blender -b -P natssi_mockup.py
 - `dock`(클로즈업)·`dock_empty`(디바이스를 숨긴 빈 거치대) 컷 추가
 - 검증: `python3 tools/verify_dock.py`
 - 이어서 할 작업은 `CLAUDE.md` 참고
+
+## 에코시스템 샷 (`ecosystem`)
+
+- 노트북(웹 대시보드 `screen_web.png`) + 폰(스캔 앱 화면 `screen_phone1.png`) + 데스크 스캐너(거치대 위 디바이스)를 한 화면에 담은 풀 샷
+- 왼쪽 앞 대각선 위에서 내려다보는 카메라 `Cam_ecosystem`(40mm). 이 컷에서만 두 번째 폰(`Phone_today`)을 숨김
+- 렌더: `NATSSI_SHOTS=ecosystem python3 natssi_mockup.py` → `renders/natssi_ecosystem.png`

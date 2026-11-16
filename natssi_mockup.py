@@ -5,7 +5,8 @@
   - 폰 2대: 촬영·품질 검사 화면, 오늘의 판정 화면
   - 노트북 1대: 웹 타임라인 대시보드
   - 홈더마 디바이스 1개: 낯씨 LED 케어 디바이스(가상 제품) + 충전 독
-  - 카메라 5개: hero(전체), phone, web, device, dock(거치대 안착 홈·LED 클로즈업)
+  - 카메라: hero(전체), phone, web, device, dock(거치대 안착 홈·LED 클로즈업), dock_empty,
+    ecosystem(노트북+스캔 폰+스캐너 풀 샷)
 
 실행 방법
   1) 명령줄(전부 렌더):   blender -b -P natssi_mockup.py
@@ -549,6 +550,10 @@ cams["dock"] = camera("Cam_dock", _dw((0.020, -0.255, 0.105)), _dw((0.005, -0.02
 cams["dock"].data.dof.aperture_fstop = 22
 cams["dock_empty"] = camera("Cam_dock_empty", _dw((-0.005, -0.150, 0.215)), _dw((-0.015, 0.000, 0.010)), 42)
 cams["dock_empty"].data.dof.aperture_fstop = 22
+# 에코시스템 샷: 노트북(웹) + 폰(스캔 앱 화면) + 데스크 스캐너가 한 책상 위에 모인 풀 샷.
+# 왼쪽 앞 대각선 위에서 내려다봄. 폰은 스캔 화면(Phone_check) 한 대만 보이게 Phone_today를 숨긴다.
+cams["ecosystem"] = camera("Cam_ecosystem", (-0.24, -0.85, 0.45), (0.03, -0.03, 0.085), 40)
+HIDE = {"ecosystem": ("Phone_today",)}                # 컷별로 숨길 오브젝트 이름 접두어
 bpy.context.scene.camera = cams["hero"]
 
 if RENDER:
@@ -562,6 +567,8 @@ if RENDER:
         for o in bpy.data.objects:                       # dock_empty: 디바이스를 숨기고 거치대 홈만 보여줌
             if o.name.startswith("Device_") or o.name == "Device":
                 o.hide_render = (key == "dock_empty") and o.name not in keep and o.name != "Device"
+            elif o.name.startswith("Phone_"):
+                o.hide_render = o.name.startswith(HIDE.get(key, ("\0",)))
         bpy.context.scene.render.filepath = os.path.join(OUT_DIR, f"natssi_{key}.png")
         bpy.ops.render.render(write_still=True)
         print("[natssi] 렌더 완료:", bpy.context.scene.render.filepath)
