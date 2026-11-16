@@ -37,5 +37,6 @@ blender -b -P natssi_mockup.py
 
 - 노트북(웹 `desktop/04_change.png` 변화 그래프) + 폰(스캔 앱 화면 `mobile/05_capture.png`) + 데스크 스캐너(거치대 위 디바이스)를 한 화면에 담은 풀 샷
 - 화면 이미지는 `python3 tools/make_eco_screens.py`로 `screens/screen_eco_web.png`, `screens/screen_eco_phone.png`를 만들어 이 컷에서만 바꿔 넣음(`SCREEN_SWAP`). 다른 화면을 쓰려면 이 스크립트의 파일 경로를 바꾸고 다시 실행
-- 왼쪽 앞 대각선 위에서 내려다보는 카메라 `Cam_ecosystem`(40mm). 이 컷에서만 두 번째 폰(`Phone_today`)을 숨김
+- 왼쪽 앞 대각선 위에서 내려다보는 카메라 `Cam_ecosystem`(44mm). 이 컷에서만 두 번째 폰(`Phone_today`)을 숨김
+- 배경은 집 안 책상(`make_home()`): 원목 책상, 벽, 왼쪽 창으로 들어오는 아침 햇살, 화분·책·머그·액자 소품. 다른 컷은 기존 스튜디오 배경 그대로(`HOME_SHOTS`, `use_set()`로 컷별 전환)
 - 렌더: `NATSSI_SHOTS=ecosystem python3 natssi_mockup.py` → `renders/natssi_ecosystem.png`

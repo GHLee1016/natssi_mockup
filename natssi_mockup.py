@@ -476,6 +476,155 @@ def world_and_floor():
     link(f, "Set")
 
 
+# ───────── 집 배경(에코시스템 샷용): 창가 원목 책상 ─────────
+DESK_Z = -0.72            # 방바닥 높이(책상 윗면 z=0 기준)
+
+
+def wood_mat(name, c1, c2, rough=0.45):
+    """나뭇결(절차적): 한 방향으로 늘인 노이즈 → 두 갈색 사이 보간."""
+    m = principled(name, c1, rough, 0.0, 0.15)
+    nt = m.node_tree
+    b = nt.nodes["Principled BSDF"]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    mp = nt.nodes.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = (1.2, 22.0, 22.0)
+    nz = nt.nodes.new("ShaderNodeTexNoise")
+    nz.inputs["Scale"].default_value = 2.2
+    nz.inputs["Detail"].default_value = 7.0
+    nz.inputs["Distortion"].default_value = 1.2
+    cr = nt.nodes.new("ShaderNodeValToRGB")
+    cr.color_ramp.elements[0].position = 0.32
+    cr.color_ramp.elements[0].color = (*srgb(c2), 1)
+    cr.color_ramp.elements[1].position = 0.70
+    cr.color_ramp.elements[1].color = (*srgb(c1), 1)
+    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], nz.inputs["Vector"])
+    nt.links.new(nz.outputs["Fac"], cr.inputs["Fac"])
+    nt.links.new(cr.outputs["Color"], b.inputs["Base Color"])
+    return m
+
+
+def make_home():
+    """일반적인 집 방 한쪽: 벽에 붙인 원목 책상, 왼쪽 벽의 창, 책상 위 소품(화분·책·머그·액자)."""
+    M = {
+        "desk": wood_mat("HomeDesk", (0.66, 0.50, 0.34), (0.50, 0.35, 0.22)),
+        "wall": principled("HomeWall", (0.86, 0.83, 0.78), 0.9),
+        "floor": wood_mat("HomeFloor", (0.52, 0.38, 0.26), (0.38, 0.26, 0.17), 0.5),
+        "trim": principled("HomeTrim", (0.93, 0.92, 0.89), 0.5),
+        "pot": principled("HomePot", (0.80, 0.52, 0.38), 0.7),
+        "soil": principled("HomeSoil", (0.16, 0.12, 0.09), 0.95),
+        "leaf": principled("HomeLeaf", (0.20, 0.38, 0.20), 0.5),
+        "mug": principled("HomeMug", (0.93, 0.91, 0.87), 0.25, 0.0, 0.4),
+        "coffee": principled("HomeCoffee", (0.16, 0.09, 0.05), 0.2),
+        "book1": principled("HomeBook1", (0.30, 0.40, 0.46), 0.7),
+        "book2": principled("HomeBook2", (0.80, 0.62, 0.48), 0.7),
+        "book3": principled("HomeBook3", (0.88, 0.85, 0.78), 0.7),
+        "paper": principled("HomePaper", (0.95, 0.93, 0.88), 0.8),
+        "frame": wood_mat("HomeFrame", (0.42, 0.29, 0.18), (0.30, 0.20, 0.12)),
+        "art": principled("HomeArt", (0.90, 0.60, 0.44), 0.8),
+    }
+    objs = []
+
+    def box(name, size, loc, mat, bevel=0.002, rot_z=0.0):
+        o = rounded_box(name, size, bevel, 3, mat, loc=loc)
+        o.rotation_euler[2] = math.radians(rot_z)
+        objs.append(o)
+        return o
+
+    def cyl(name, r, depth, loc, mat, r2=None, verts=48):
+        if r2 is None:
+            bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=r, depth=depth, location=loc)
+        else:
+            bpy.ops.mesh.primitive_cone_add(vertices=verts, radius1=r, radius2=r2, depth=depth, location=loc)
+        o = bpy.context.active_object
+        o.name = name
+        _smooth(40)
+        o.data.materials.append(mat)
+        objs.append(o)
+        return o
+
+    wall_y, wall_x = 0.42, -0.95
+    # 책상: 상판(윗면 z=0) + 다리
+    box("Home_desk_top", (1.90, 1.05, 0.03), (0.0, wall_y - 0.525, -0.015), M["desk"], 0.004)
+    for i, (x, y) in enumerate(((-0.88, -0.56), (0.88, -0.56), (-0.88, 0.36), (0.88, 0.36))):
+        box(f"Home_desk_leg{i}", (0.05, 0.05, -DESK_Z - 0.03), (x, y, (DESK_Z - 0.03) / 2), M["desk"])
+    # 방바닥, 뒷벽, 걸레받이
+    box("Home_floor", (5.0, 5.0, 0.02), (0.6, -1.0, DESK_Z - 0.01), M["floor"])
+    box("Home_wall_back", (5.0, 0.06, 2.6), (0.6, wall_y + 0.03, DESK_Z + 1.3), M["wall"])
+    box("Home_baseboard", (5.0, 0.012, 0.08), (0.6, wall_y - 0.006, DESK_Z + 0.04), M["trim"])
+    # 왼쪽 벽 + 창(가로 1.0m × 세로 1.1m, 십자 창살). 창 밖에서 아침 햇살이 들어온다.
+    y0, y1, z0, z1 = -0.70, 0.30, 0.15, 1.25
+    wx = wall_x - 0.03
+    box("Home_wall_left_low", (0.06, 5.0, z0 - DESK_Z), (wx, -1.0, (z0 + DESK_Z) / 2), M["wall"])
+    box("Home_wall_left_top", (0.06, 5.0, DESK_Z + 2.6 - z1), (wx, -1.0, (z1 + DESK_Z + 2.6) / 2), M["wall"])
+    box("Home_wall_left_front", (0.06, 3.5 + y0, z1 - z0), (wx, (y0 - 3.5) / 2, (z0 + z1) / 2), M["wall"])
+    box("Home_wall_left_back", (0.06, wall_y + 0.06 - y1, z1 - z0), (wx, (y1 + wall_y + 0.06) / 2, (z0 + z1) / 2), M["wall"])
+    box("Home_window_bar_v", (0.04, 0.04, z1 - z0), (wx, 0.05, (z0 + z1) / 2), M["trim"])
+    box("Home_window_bar_h", (0.04, y1 - y0, 0.04), (wx, (y0 + y1) / 2, 0.88), M["trim"])
+    box("Home_window_sill", (0.14, y1 - y0 + 0.08, 0.025), (wall_x + 0.03, (y0 + y1) / 2, z0 - 0.0125), M["trim"])
+    # 화분(뒤 오른쪽)
+    px, py = 0.34, 0.30
+    cyl("Home_pot", 0.038, 0.085, (px, py, 0.0425), M["pot"], r2=0.050)
+    cyl("Home_pot_soil", 0.047, 0.004, (px, py, 0.080), M["soil"])
+    import random
+    rnd = random.Random(7)
+    for i in range(13):
+        ang = 2 * math.pi * i / 13 + rnd.uniform(-0.2, 0.2)
+        tilt = rnd.uniform(0.15, 0.55)
+        ln = rnd.uniform(0.10, 0.17)
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1, location=(0, 0, 0))
+        lf = bpy.context.active_object
+        lf.name = f"Home_leaf{i}"
+        lf.scale = (0.019, 0.0035, ln / 2)
+        bpy.ops.object.transform_apply(scale=True)
+        bpy.ops.object.shade_smooth()
+        lf.rotation_euler = (0, tilt, ang)
+        r0 = 0.012
+        lf.location = (px + math.cos(ang) * (r0 + math.sin(tilt) * ln / 2),
+                       py + math.sin(ang) * (r0 + math.sin(tilt) * ln / 2), 0.082 + math.cos(tilt) * ln / 2)
+        lf.data.materials.append(M["leaf"])
+        objs.append(lf)
+    # 책 더미(뒤 왼쪽)
+    bx, by = -0.36, 0.29
+    box("Home_book1", (0.21, 0.15, 0.028), (bx, by, 0.014), M["book1"], 0.003, 6)
+    box("Home_book1_pages", (0.202, 0.142, 0.020), (bx + 0.004, by - 0.004, 0.014), M["paper"], 0.001, 6)
+    box("Home_book2", (0.19, 0.135, 0.022), (bx + 0.005, by + 0.003, 0.039), M["book2"], 0.003, -5)
+    box("Home_book3", (0.17, 0.12, 0.018), (bx - 0.004, by, 0.059), M["book3"], 0.003, 11)
+    # 머그(책 더미와 노트북 사이)
+    mx, my = -0.185, 0.26
+    cyl("Home_mug", 0.040, 0.092, (mx, my, 0.046), M["mug"])
+    cyl("Home_mug_coffee", 0.035, 0.002, (mx, my, 0.0925), M["coffee"])
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.026, minor_radius=0.006, major_segments=48, minor_segments=12,
+                                     location=(mx + 0.012, my - 0.043, 0.048), rotation=(math.radians(90), 0, math.radians(105)))
+    hd = bpy.context.active_object
+    hd.name = "Home_mug_handle"
+    bpy.ops.object.shade_smooth()
+    hd.data.materials.append(M["mug"])
+    objs.append(hd)
+    # 벽에 건 액자(왼쪽 위)
+    fx, fz = -0.19, 0.38
+    box("Home_frame", (0.21, 0.02, 0.27), (fx, wall_y - 0.01, fz), M["frame"], 0.003)
+    box("Home_frame_mat", (0.18, 0.004, 0.24), (fx, wall_y - 0.021, fz), M["paper"], 0.001)
+    box("Home_frame_art", (0.09, 0.004, 0.13), (fx, wall_y - 0.023, fz - 0.01), M["art"], 0.001)
+    for o in objs:
+        link(o, "Home")
+    # 조명: 낮은 각도의 따뜻한 아침 햇살(창으로) + 창 쪽 부드러운 하늘빛 + 방 안쪽 은은한 필
+    sd = bpy.data.lights.new("Home_sun", "SUN")
+    sd.energy = 3.6
+    sd.color = (1.0, 0.84, 0.66)
+    sd.angle = math.radians(5)
+    so = bpy.data.objects.new("Home_sun", sd)
+    bpy.context.scene.collection.objects.link(so)
+    el, az = math.radians(27), math.radians(14)
+    d = Vector((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), -math.sin(el)))
+    so.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    link(so, "HomeLights")
+    sky = area("Home_window_sky", (wall_x - 0.25, (y0 + y1) / 2, (z0 + z1) / 2), (0.2, -0.1, 0.0), 1.0, 10, (0.86, 0.92, 1.0))
+    fill = area("Home_room_fill", (0.9, -1.0, 0.9), (0.0, -0.05, 0.05), 1.6, 5, (1.0, 0.90, 0.80))
+    for o in (sky, fill):
+        link(o, "HomeLights")
+
+
 # ───────── 렌더 설정 ─────────
 def render_setup():
     s = bpy.context.scene
@@ -533,6 +682,8 @@ make_phone("Phone_today", "screen_phone2.png", (-0.15, -0.09, 0), rot_z_deg=8)
 DEV = make_device((0.23, -0.13, 0), rot_z_deg=-24)
 bpy.context.view_layer.update()
 
+make_home()
+
 area("Key", (-0.6, -0.7, 0.9), (0, 0, 0.05), 0.9, 24)
 area("Fill", (0.8, -0.5, 0.5), (0, 0, 0.05), 1.2, 8, (1, 0.95, 0.9))
 area("Rim", (0.2, 0.8, 0.7), (0, 0, 0.1), 0.8, 16, (0.9, 0.95, 1))
@@ -552,7 +703,22 @@ cams["dock_empty"] = camera("Cam_dock_empty", _dw((-0.005, -0.150, 0.215)), _dw(
 cams["dock_empty"].data.dof.aperture_fstop = 22
 # 에코시스템 샷: 노트북(웹) + 폰(스캔 앱 화면) + 데스크 스캐너가 한 책상 위에 모인 풀 샷.
 # 왼쪽 앞 대각선 위에서 내려다봄. 폰은 스캔 화면(Phone_check) 한 대만 보이게 Phone_today를 숨긴다.
-cams["ecosystem"] = camera("Cam_ecosystem", (-0.24, -0.85, 0.45), (0.03, -0.03, 0.085), 40)
+cams["ecosystem"] = camera("Cam_ecosystem", (-0.26, -0.90, 0.40), (0.03, 0.0, 0.115), 44)
+# 컷별 배경 세트: "home" = 집 책상(Home·HomeLights 컬렉션), 그 밖은 스튜디오(Set·Lights 컬렉션)
+HOME_SHOTS = ("ecosystem",)
+WORLD_HOME = ((1.0, 0.93, 0.85), 0.10)                # 집 배경일 때 월드 색·세기(따뜻하고 어둡게)
+
+
+def use_set(key):
+    home = key in HOME_SHOTS
+    for cname, on in (("Home", home), ("HomeLights", home), ("Set", not home), ("Lights", not home)):
+        for o in bpy.data.collections[cname].objects:
+            o.hide_render = not on
+            o.hide_viewport = not on
+    bg = bpy.context.scene.world.node_tree.nodes["Background"]
+    col, st = WORLD_HOME if home else ((0.97, 0.955, 0.94), 0.14)
+    bg.inputs[0].default_value = (*srgb(col), 1)
+    bg.inputs[1].default_value = st
 HIDE = {"ecosystem": ("Phone_today",)}                # 컷별로 숨길 오브젝트 이름 접두어
 # 컷별 화면 이미지 교체(재질 이름 → screens/ 안의 파일). desktop/·mobile/ 캡처에서 tools/make_eco_screens.py로 만든다.
 SCREEN_SWAP = {"ecosystem": {"web_scr": "screen_eco_web.png", "Phone_check_scr": "screen_eco_phone.png"}}
@@ -571,6 +737,7 @@ def swap_screens(key):
             else:
                 tex.image = _SCREEN_DEFAULT[mname]
 bpy.context.scene.camera = cams["hero"]
+use_set("hero")
 
 if RENDER:
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -580,6 +747,7 @@ if RENDER:
             continue
         bpy.context.scene.camera = cam
         swap_screens(key)
+        use_set(key)
         keep = ("Device_dock", "Device_dock_LED", "Dock_LED_glow")
         for o in bpy.data.objects:                       # dock_empty: 디바이스를 숨기고 거치대 홈만 보여줌
             if o.name.startswith("Device_") or o.name == "Device":
