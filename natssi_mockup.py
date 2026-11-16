@@ -554,6 +554,22 @@ cams["dock_empty"].data.dof.aperture_fstop = 22
 # 왼쪽 앞 대각선 위에서 내려다봄. 폰은 스캔 화면(Phone_check) 한 대만 보이게 Phone_today를 숨긴다.
 cams["ecosystem"] = camera("Cam_ecosystem", (-0.24, -0.85, 0.45), (0.03, -0.03, 0.085), 40)
 HIDE = {"ecosystem": ("Phone_today",)}                # 컷별로 숨길 오브젝트 이름 접두어
+# 컷별 화면 이미지 교체(재질 이름 → screens/ 안의 파일). desktop/·mobile/ 캡처에서 tools/make_eco_screens.py로 만든다.
+SCREEN_SWAP = {"ecosystem": {"web_scr": "screen_eco_web.png", "Phone_check_scr": "screen_eco_phone.png"}}
+_SCREEN_DEFAULT = {}
+
+
+def swap_screens(key):
+    """key 컷에 맞는 화면 이미지로 바꾸고, 다른 컷에서는 원래 이미지로 되돌린다."""
+    swaps = SCREEN_SWAP.get(key, {})
+    for mats in SCREEN_SWAP.values():
+        for mname in mats:
+            tex = next(n for n in bpy.data.materials[mname].node_tree.nodes if n.type == "TEX_IMAGE")
+            _SCREEN_DEFAULT.setdefault(mname, tex.image)
+            if mname in swaps:
+                tex.image = bpy.data.images.load(os.path.join(SCREENS, swaps[mname]), check_existing=True)
+            else:
+                tex.image = _SCREEN_DEFAULT[mname]
 bpy.context.scene.camera = cams["hero"]
 
 if RENDER:
@@ -563,6 +579,7 @@ if RENDER:
         if only and key not in only.split(","):
             continue
         bpy.context.scene.camera = cam
+        swap_screens(key)
         keep = ("Device_dock", "Device_dock_LED", "Dock_LED_glow")
         for o in bpy.data.objects:                       # dock_empty: 디바이스를 숨기고 거치대 홈만 보여줌
             if o.name.startswith("Device_") or o.name == "Device":
